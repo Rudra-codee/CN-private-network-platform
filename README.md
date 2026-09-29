@@ -20,6 +20,16 @@ Verified:
 - Machine-to-machine ping connectivity (6 paths, 0% loss)
 - Topology documentation
 
+### Task B — Private DNS Server
+Status: **COMPLETE** ✅
+
+Verified:
+- dnsmasq 2.93 running on Mac 1 (10.7.17.222:53)
+- `app.teamX.test` → 10.7.9.11 (Mac 2)
+- `api.teamX.test` → 10.7.9.11 (Mac 2)
+- Mac 2 and Mac 4 configured as DNS clients
+- dig verification evidence collected
+
 ### Current Network
 
 | Machine | IPv4 | Role |
@@ -31,7 +41,7 @@ Verified:
 
 ### Next Task
 
-**Task B** — Configure the Private DNS Server on Mac 1.
+**Task C** — Deploy the two HTTP/REST backend services (Backend A on Mac 3, Backend B on Mac 4).
 
 ---
 

@@ -13,11 +13,11 @@ This practical checklist tracks step-by-step progress for completing and verifyi
 - [x] Topology diagram completed
 
 ## DNS Configuration & Verification
-- [ ] dnsmasq configured on Mac 1
-- [ ] app.teamX.test resolves to Mac 2
-- [ ] api.teamX.test resolves to Mac 2
-- [ ] At least two client Macs use Mac 1 as DNS resolver
-- [ ] dig/nslookup evidence collected
+- [x] dnsmasq configured on Mac 1
+- [x] app.teamX.test resolves to Mac 2
+- [x] api.teamX.test resolves to Mac 2
+- [x] At least two client Macs use Mac 1 as DNS resolver
+- [x] dig/nslookup evidence collected
 
 ## Backend Services
 - [ ] Backend A runs on 3001
