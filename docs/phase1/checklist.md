@@ -20,20 +20,26 @@ This practical checklist tracks step-by-step progress for completing and verifyi
 - [x] dig/nslookup evidence collected
 
 ## Backend Services
-- [ ] Backend A runs on 3001
-- [ ] Backend B runs on 3002
-- [ ] GET / works
-- [ ] GET /api/status works
-- [ ] X-Backend header works
-- [ ] Backends are LAN-accessible
+- [x] Backend A runs on 3001
+- [x] Backend B runs on 3002
+- [x] GET / works
+- [x] GET /api/status works
+- [x] X-Backend header works
+- [x] Backends are LAN-accessible
 
 ## nginx Edge & Load Balancing
-- [ ] nginx runs on Mac 2
-- [ ] Reverse proxy configured
-- [ ] Load balancing configured
-- [ ] Requests reach Backend A
-- [ ] Requests reach Backend B
-- [ ] X-Backend A/B demonstrated
+- [x] nginx installed on Mac 2
+- [x] nginx configuration created
+- [x] nginx configuration validated
+- [x] nginx listening on port 8080
+- [x] Backend A reachable
+- [x] Backend B reachable
+- [x] Reverse proxy working
+- [x] app.teamX.test reaches nginx
+- [x] Backend A returned through nginx
+- [x] Backend B returned through nginx
+- [x] Round-robin behavior demonstrated
+- [x] Evidence documented
 
 ## TLS / HTTPS
 - [ ] Certificate generated
