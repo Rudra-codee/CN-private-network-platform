@@ -8,6 +8,33 @@ This repository houses the configuration, documentation, backend services, and p
 
 The underlying application code is intentionally kept simple so that the network architecture, traffic management, protocol mechanics, and system behavior remain the primary focus.
 
+## Phase 1 Progress
+
+### Task A — Establish Private LAN
+Status: **COMPLETE** ✅
+
+Verified:
+- 4-machine private LAN (10.7.0.0/19)
+- IP inventory for all machines
+- Subnet/gateway/interface/MAC details recorded
+- Machine-to-machine ping connectivity (6 paths, 0% loss)
+- Topology documentation
+
+### Current Network
+
+| Machine | IPv4 | Role |
+|---|---|---|
+| Mac 1 | 10.7.17.222 | DNS + Client |
+| Mac 2 | 10.7.9.11 | Edge / LB |
+| Mac 3 | 10.7.13.5 | Backend A |
+| Mac 4 | 10.7.11.88 | Backend B + Client |
+
+### Next Task
+
+**Task B** — Configure the Private DNS Server on Mac 1.
+
+---
+
 ## Team Architecture
 
 The physical deployment and role distribution across the four macOS laptops is structured as follows:

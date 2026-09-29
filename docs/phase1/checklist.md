@@ -3,14 +3,14 @@
 This practical checklist tracks step-by-step progress for completing and verifying Phase 1 requirements.
 
 ## LAN Setup & Verification
-- [ ] All 4 Macs on same private LAN
-- [ ] IP addresses recorded
-- [ ] Prefix/subnet recorded
-- [ ] Gateway recorded
-- [ ] Network interface recorded
-- [ ] MAC addresses recorded
-- [ ] All machines can ping each other
-- [ ] Topology diagram completed
+- [x] All 4 Macs on same private LAN
+- [x] IP addresses recorded
+- [x] Prefix/subnet recorded
+- [x] Gateway recorded
+- [x] Network interface recorded
+- [x] MAC addresses recorded
+- [x] All tested machine pairs can communicate with ping
+- [x] Topology diagram completed
 
 ## DNS Configuration & Verification
 - [ ] dnsmasq configured on Mac 1

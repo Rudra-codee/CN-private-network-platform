@@ -1,47 +1,66 @@
 # Network Topology & Machine Roles
 
-This document describes the physical and logical network topology for Phase 1 of the Private Network Service Platform.
+This document describes the physical and logical network topology for the Private Network Service Platform. All four macOS laptops are connected to the same private Wi-Fi/LAN segment (10.7.0.0/19).
 
 ## Network Topology Diagram
 
-```
-                  Private Wi-Fi / LAN
-                         |
-        +----------------+----------------+
-        |                |                |
-      Mac 1            Mac 2            Mac 3
-   DNS + Client    nginx Edge/LB       Backend A
-                     :443              :3001
-                         |
-                         |
-                       Mac 4
-                     Backend B
-                       :3002
+```mermaid
+flowchart LR
+    LAN["Private Wi-Fi / LAN\n10.7.0.0/19\nGateway: 10.7.0.1"]
+
+    M1["Mac 1\nPrivate DNS + Client\n10.7.17.222"]
+
+    M2["Mac 2\nEdge / Reverse Proxy + Load Balancer\n10.7.9.11"]
+
+    M3["Mac 3\nBackend A\n10.7.13.5"]
+
+    M4["Mac 4\nBackend B + Client\n10.7.11.88"]
+
+    LAN --- M1
+    LAN --- M2
+    LAN --- M3
+    LAN --- M4
 ```
 
-## Machine Roles & Responsibilities
+## ASCII Topology (Fallback)
+
+```
+                    PRIVATE WI-FI / LAN
+                       10.7.0.0/19
+                     Gateway 10.7.0.1
+                            |
+        +-------------------+-------------------+
+        |                   |                   |
+      Mac 1               Mac 2               Mac 3
+    DNS + Client      nginx Edge/LB          Backend A
+   10.7.17.222       10.7.9.11             10.7.13.5
+                            |
+                            |
+                          Mac 4
+                       Backend B + Client
+                        10.7.11.88
+```
+
+## Machine Roles
 
 - **Mac 1 — Private DNS Server + Test Client**
-  - Runs `dnsmasq` to provide authoritative private domain resolution for `.teamX.test`.
-  - Serves as a primary DNS resolver for other nodes on the private LAN.
-  - Generates test requests to verify DNS resolution and HTTPS end-to-end traffic.
+  - Designated to run `dnsmasq` for authoritative private domain resolution (`.teamX.test`).
+  - Will serve as the primary DNS resolver for other nodes on the private LAN.
+  - Also functions as a test client for generating requests to verify end-to-end traffic.
 
 - **Mac 2 — Edge Reverse Proxy & Load Balancer**
-  - Runs `nginx` acting as the single public entry point (`:443`).
-  - Terminates TLS connections for `app.teamX.test` and `api.teamX.test`.
-  - Load balances incoming HTTP requests across Backend A and Backend B using round-robin.
-  - Inserts/forwards proxy headers (`X-Forwarded-For`, `X-Forwarded-Proto`).
+  - Designated to run `nginx` as the single entry point for client traffic (port 443).
+  - Will terminate TLS connections for `app.teamX.test` and `api.teamX.test`.
+  - Will load balance incoming HTTP requests across Backend A and Backend B using round-robin.
 
 - **Mac 3 — Backend Server A**
-  - Runs a lightweight HTTP/REST backend service listening on TCP port 3001.
-  - Serves application requests routed from Mac 2.
-  - Includes `X-Backend: A` in response headers to identify service origin.
+  - Designated to run a lightweight HTTP/REST backend service on TCP port 3001.
+  - Will serve application requests routed from Mac 2.
 
 - **Mac 4 — Backend Server B + Test Client**
-  - Runs a lightweight HTTP/REST backend service listening on TCP port 3002.
-  - Serves application requests routed from Mac 2.
-  - Includes `X-Backend: B` in response headers to identify service origin.
-  - Serves as an additional test client node for running traffic generators and Wireshark captures.
+  - Designated to run a lightweight HTTP/REST backend service on TCP port 3002.
+  - Will serve application requests routed from Mac 2.
+  - Also serves as an additional test client node for traffic generation and verification.
 
 > [!NOTE]
-> IP addresses will be assigned dynamically or recorded statically when connecting all machines to the private LAN segment. No static IPs are assumed prior to physical deployment.
+> This topology represents the physical/logical LAN membership established in Task A. The service roles described above are planned for subsequent Phase 1 tasks. All four machines have been verified as reachable on the 10.7.0.0/19 network.
