@@ -50,9 +50,9 @@ This practical checklist tracks step-by-step progress for completing and verifyi
 - [ ] TLS handshake captured
 
 ## HTTP Caching Behavior
-- [ ] Cache-Control header configured
-- [ ] curl -I evidence captured
-- [ ] Cache hit or 304 demonstrated
+- [x] Cache-Control header configured
+- [x] curl -I evidence captured
+- [x] Cache hit or 304 demonstrated
 
 ## Packet Capture & Analysis
 - [ ] DNS query/response captured
