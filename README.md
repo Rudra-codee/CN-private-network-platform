@@ -30,6 +30,23 @@ Verified:
 - Mac 2 and Mac 4 configured as DNS clients
 - dig verification evidence collected
 
+### Task C — Backend Services
+Status: **COMPLETE** ✅
+
+Verified:
+- Backend A on Mac 3 (10.7.13.5:3001) returning `X-Backend: A`
+- Backend B on Mac 4 (10.7.29.244:3002) returning `X-Backend: B`
+- JSON status endpoints verified directly on LAN
+
+### Task D — nginx Reverse Proxy + Load Balancing
+Status: **COMPLETE** ✅
+
+Verified:
+- nginx 1.31.6 running on Mac 2 listening on port 8080
+- `app.teamX.test` proxying to `backend_pool`
+- 10-request round-robin distribution verified (50/50 split across A and B)
+- Service restart and socket listening state verified
+
 ### Current Network
 
 | Machine | IPv4 | Role |
@@ -37,11 +54,11 @@ Verified:
 | Mac 1 | 10.7.17.222 | DNS + Client |
 | Mac 2 | 10.7.9.11 | Edge / LB |
 | Mac 3 | 10.7.13.5 | Backend A |
-| Mac 4 | 10.7.11.88 | Backend B + Client |
+| Mac 4 | 10.7.29.244 | Backend B + Client |
 
 ### Next Task
 
-**Task C** — Deploy the two HTTP/REST backend services (Backend A on Mac 3, Backend B on Mac 4).
+**Task E** — HTTPS / TLS termination at nginx.
 
 ---
 
