@@ -240,3 +240,205 @@ While DNS-based migration avoids introducing complex Layer 3 routing protocols (
 
 ---
 
+## 5. Extension F: Faculty-Injected Fault Troubleshooting Methodology
+
+Under academic evaluation guidelines, faculty will inject an unannounced configuration fault into one layer of the platform stack. The engineering team must rapidly detect, isolate, and remediate the issue using a structured, deterministic diagnostic sequence.
+
+### 5.1 Systematic 4-Layer Diagnostic Protocol
+
+To prevent unstructured guessing, diagnostics proceed strictly bottom-up across the functional dependency stack:
+
+```
+[Layer 1: DNS Resolution] ──► [Layer 2: TCP Transport] ──► [Layer 3: TLS Cryptography] ──► [Layer 4: Application Layer]
+```
+
+```
++────────────────────────────────────────────────────────────────────────────+
+| DIAGNOSTIC FLOWCHART                                                       |
+|                                                                            |
+| 1. Run: dig app.teamX.test                                                 |
+|    ├─ Failure (NXDOMAIN / Timeout / Bad IP) ──► [FAULT IN LAYER 1: DNS]    |
+|    └─ Success (NOERROR -> 10.7.9.219 or 10.7.24.216) ──┐                   |
+|                                                        │                   |
+| 2. Run: nc -zv -w 3 <IP> <PORT>                        ▼                   |
+|    ├─ Failure (Connection Refused / Timed Out) ─► [FAULT IN LAYER 2: TCP]  |
+|    └─ Success (Connection open / SYN-ACK) ─────────────┐                   |
+|                                                        │                   |
+| 3. Run: openssl s_client -connect <IP>:<PORT> -sni ... ▼                   |
+|    ├─ Failure (Cert expired / Self-signed / SNI) ─► [FAULT IN LAYER 3: TLS]|
+|    └─ Success (Verify return code: 0 OK) ──────────────┐                   |
+|                                                        │                   |
+| 4. Run: curl -i https://app.teamX.test:<PORT>/status   ▼                   |
+|    ├─ Failure (502 Bad Gateway / 504 Timeout) ──► [FAULT IN LAYER 4: APP]  |
+|    └─ Success (HTTP 200 OK + X-Backend Header) ──► SYSTEM FULLY HEALTHY    |
++────────────────────────────────────────────────────────────────────────────+
+```
+
+---
+
+### 5.2 Layer-by-Layer Diagnostic Matrix & Useful Commands
+
+#### Layer 1: DNS Resolution Layer
+- **Objective**: Verify that the domain resolves to the correct IP address via authorized resolvers.
+- **Commands**:
+  ```bash
+  # Query default system stub resolver
+  dig app.teamX.test
+
+  # Explicitly query Primary DNS (Mac1)
+  dig @10.7.19.129 app.teamX.test
+
+  # Explicitly query Backup DNS (Mac3)
+  dig @10.7.24.216 app.teamX.test
+
+  # Inspect active macOS resolver configuration
+  scutil --dns
+  ```
+- **Diagnostic Interpretation**:
+  - `status: NOERROR` with expected IP: DNS resolution is functional.
+  - `status: NXDOMAIN`: The record is missing or misspelled in `dnsmasq.conf`.
+  - `connection timed out`: `dnsmasq` process is stopped on target DNS server, port 53 is blocked, or the IP is misconfigured.
+  - Returned IP differs from expected edge: Incomplete record migration or stale host cache (`sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder`).
+
+#### Layer 2: TCP Transport Layer
+- **Objective**: Verify network reachability, routing, and that the target port is actively bound and listening.
+- **Commands**:
+  ```bash
+  # Check edge proxy HTTP/HTTPS ports (Mac2)
+  nc -z -v -w 3 10.7.9.219 8080
+  nc -z -v -w 3 10.7.9.219 8443
+
+  # Check backend ports on Mac3 (from authorized host Mac2)
+  nc -z -v -w 3 10.7.24.216 3001
+  nc -z -v -w 3 10.7.24.216 3002
+
+  # On target host: verify process listening state
+  sudo lsof -nP -iTCP:8443 -sTCP:LISTEN
+  sudo lsof -nP -iTCP:3001 -sTCP:LISTEN
+  ```
+- **Diagnostic Interpretation**:
+  - `Connection to <IP> <PORT> port [tcp/*] succeeded!`: TCP socket is listening, ARP resolved, routing operational, firewall permits traffic.
+  - `Connection refused` (TCP RST packet received): Host is reachable and firewall permits packet, but **no service is listening on that port** (e.g., Nginx or Node.js process crashed or stopped).
+  - `Connection timed out` (no response): Packet dropped silently. Primary causes: **PF firewall blocking rule (`block drop`)**, host offline, or incorrect routing table entry.
+
+#### Layer 3: TLS / Cryptographic Layer
+- **Objective**: Verify that the TLS handshake completes, SNI negotiation succeeds, and the certificate chain validates against local trust anchors.
+- **Commands**:
+  ```bash
+  # Test TLS handshake and certificate validation
+  openssl s_client -connect 10.7.9.219:8443 -servername app.teamX.test -showcerts </dev/null
+
+  # Inspect certificate details directly from file
+  openssl x509 -in configs/tls/app.teamX.test.pem -text -noout | grep -E "Subject:|DNS:"
+  ```
+- **Diagnostic Interpretation**:
+  - `Verify return code: 0 (ok)`: Certificate is valid, issued by trusted root CA, host name matches SAN, and handshake succeeded.
+  - `Verify return code: 19 (self-signed certificate in certificate chain)` or `21 (unable to verify the first certificate)`: Client machine missing local root CA in Keychain (`mkcert -install`).
+  - `handshake failure`: TLS protocol version mismatch (e.g., client requests TLS 1.2 but server enforces strict TLS 1.3), or cipher suite negotiation mismatch.
+  - `hostname mismatch`: Client requested hostname not included in Certificate Subject Alternative Name (`SAN`).
+
+#### Layer 4: Application Layer (HTTP / Nginx Upstream / Caching)
+- **Objective**: Verify HTTP transaction semantics, reverse proxy forwarding, backend headers, and caching policies.
+- **Commands**:
+  ```bash
+  # Verbose HTTP query to edge proxy
+  curl -i -v --resolve app.teamX.test:8443:10.7.9.219 https://app.teamX.test:8443/api/status
+
+  # Bypass cache to test fresh upstream delivery
+  curl -i https://app.teamX.test:8443/api/status -H "Cache-Control: no-cache"
+
+  # Inspect Nginx error log on edge host (Mac2)
+  tail -n 50 /opt/homebrew/var/log/nginx/error.log
+  ```
+- **Diagnostic Interpretation**:
+  - `HTTP/1.1 200 OK` with `X-Backend: A` or `X-Backend: B`: Healthy end-to-end request lifecycle.
+  - `HTTP/1.1 502 Bad Gateway`: Nginx received TCP RST or immediate close when connecting to upstream backends (`10.7.24.216:3001` or `3002`). Indicates both backend processes are dead or PF firewall on Mac3 is blocking Nginx.
+  - `HTTP/1.1 504 Gateway Timeout`: Nginx established connection to backend, but backend process failed to return HTTP response within `proxy_read_timeout` (60s).
+  - Missing `X-Cache-Status` header: Cache configuration directive missing from `nginx.conf` or request method not cached.
+
+---
+
+### 5.3 Extension F Readiness & Status Audit
+
+To maintain rigorous engineering honesty, the operational status of Extension F is categorized as follows:
+
+| Evaluation Milestone | Current Status | Supporting Evidence / Notes | Action Required |
+|---|---|---|---|
+| **Diagnostic Scripting & Command Runbook** | **COMPLETE** | Documented above with full 4-layer command syntax and status code interpretations. | Ready for operator execution during evaluation. |
+| **Practice Test Runs** | **COMPLETE** | Internal manual injection testing completed: simulated process termination (`killall node`), port blocks, and DNS re-pointing. | Practice logs reviewed. |
+| **Pending Cleanup** | **PENDING** | Ensure temporary debug logging, loose firewall rules, or diagnostic test scripts on all Macs are reverted to clean production baselines. | Pre-evaluation checklist review. |
+| **Faculty Evaluation** | **NOT COMPLETED** | The live, unannounced faculty-injected configuration fault occurs during formal project defense. | Awaiting live evaluation slot. |
+| **Extension F Final Sign-off** | **IN PROGRESS** | **Cannot be claimed as completed until the faculty evaluation test is executed and documented.** | Post-evaluation evidence capture. |
+
+---
+
+## 6. Comprehensive Security Considerations
+
+### 6.1 Private DNS Security Architecture
+- **Protocol**: Standard unencrypted DNS over UDP/TCP port 53.
+- **Vulnerabilities**: The system does not implement DNSSEC, DNS-over-HTTPS (DoH), or DNS-over-TLS (DoT). On an untrusted local Wi-Fi segment, DNS queries are vulnerable to sniffing, ARP poisoning, and spoofed response injection.
+- **Mitigating Controls**: Operational integrity relies entirely on the physical perimeter security and WPA2/WPA3 encryption of the private Wi-Fi network.
+
+### 6.2 Firewall Restrictions & Microsegmentation
+- **PF Enforcement**: Enforcing stateful packet filtering on Mac3 ensures that raw application endpoints (`3001`, `3002`) cannot be accessed directly by unauthorized LAN nodes.
+- **Vulnerability if Disabled**: If PF is flushed (`pfctl -d`), Node.js processes become exposed to the entire LAN without rate limiting, authentication, or TLS protection.
+
+### 6.3 TLS Certificate Architecture & Development Limitations
+- **Local PKI**: Utilizes `mkcert` with custom Root CA and intermediate certificate generation for `app.teamX.test`.
+- **Cryptographic Strength**: Employs RSA 2048-bit or ECDSA P-256 keys with modern TLS 1.3 / TLS 1.2 cipher suites.
+- **Limitations**:
+  - Certificates are trusted **only** on workstations where the root CA was explicitly installed into the system trust store (`/Library/Keychains/System.keychain`).
+  - No Certificate Revocation List (CRL) or Online Certificate Status Protocol (OCSP) stapling is implemented; compromised keys cannot be revoked dynamically.
+  - Subject Alternative Name (`SAN`) is constrained strictly to `app.teamX.test`. Requests referencing IP addresses directly fail TLS validation.
+
+### 6.4 Backend Port Exposure & Process Privilege
+- **Socket Binding**: Backend Node.js processes bind to `0.0.0.0` (all interfaces). While required for LAN ingress from Mac2, binding to `0.0.0.0` makes the service entirely reliant on the host PF firewall for access control.
+- **Least Privilege Execution**: Nginx worker processes and Node.js backend processes execute as non-root user accounts (`kaustubhhiwanj` / standard users). No backend daemon requires `root` privileges.
+
+### 6.5 Failure Domains & Single Points of Failure (SPOF) Analysis
+
+| Failure Domain | Component Host | Impact of Complete Node Failure | Resilience Strategy | Architectural Classification |
+|---|---|---|---|---|
+| **DNS Resolution** | Mac1 (`10.7.19.129`) | Primary DNS resolver offline. | Automatic failover to Backup DNS on Mac3 (`10.7.24.216`). | **Resilient** (Dual-node) |
+| **Edge Gateway** | Mac2 (`10.7.9.219`) | Total ingress failure on `8080/8443`. | Manual/Automated DNS cutover to Standby Nginx on Mac3. | **Partially Resilient** (Subject to DNS TTL & port disparity) |
+| **Backend Compute & Data** | Mac3 (`10.7.24.216`) | **Total platform collapse**: Backend A, Backend B, Backup DNS, and Standby Edge all fail simultaneously. | None (Hardware colocation). | **CRITICAL SINGLE POINT OF FAILURE** |
+
+---
+
+## 7. Engineering Verification & Audit Report
+
+### 7.1 Files Inspected
+1. `docs/architecture/sections/02_DNS_Architecture.md`: Verified Phase 2 DNS topology, TTL dynamics, and Extension A/B/E documentation.
+2. `configs/nginx/nginx.conf`: Verified edge proxy upstream pool configuration, cache paths, and listening ports (8080, 8443).
+3. `evidence/04-nginx/load-balancing.md`: Verified round-robin distribution evidence.
+4. `evidence/07-wireshark/mac1/README.md`: Verified packet capture analysis demonstrating TLS 1.3 handshake and SNI validation.
+5. `/etc/pf.conf` (Local Workstation): Verified system PF base configuration.
+
+### 7.2 Firewall Rules Verified
+- Intended anchor rules verified against macOS Packet Filter specification:
+  - `pass in quick on en0 proto tcp from 10.7.9.219 to any port {3001, 3002} keep state`
+  - `block in drop quick on en0 proto tcp from any to any port {3001, 3002}`
+- Remote verification confirmed: Mac3 enforces isolation; local workstation (Mac4) hosts no backend services and runs default OS anchors.
+
+### 7.3 Tests Supported by Concrete Evidence
+1. **Load Balancing & Process Failover (Extension D)**: Verified that stopping Backend A causes Nginx to proxy 100% of traffic to Backend B without client-facing errors, and resuming Backend A restores alternating round-robin.
+2. **DNS Edge Cutover (Extension E)**: Demonstrated that updating `address=/app.teamX.test/10.7.24.216` redirects DNS query responses to Mac3 within 30 seconds.
+3. **Wireshark TLS Verification**: Verified that HTTPS traffic to `app.teamX.test:8443` successfully executes TLS 1.3 ClientHello/ServerHello and encapsulates data in encrypted Application Data records.
+
+### 7.4 Architectural Limitations
+1. **Mac3 Single Point of Failure**: Both application backends and the backup DNS server reside on Mac3. Hardware high availability is not achieved.
+2. **Edge Port Disparity**: Mac2 listens on 8080/8443; Mac3 listens on 80/443. DNS migration alone cannot remap port numbers for clients hardcoded to port 8443.
+3. **No DNSSEC / Plaintext DNS**: Resolution is vulnerable to local network spoofing.
+
+### 7.5 Pending Tasks
+1. Complete pre-evaluation environment cleanup on all machines (revert temporary test rules, clear temporary log spam).
+2. Undertake live Faculty-injected fault isolation evaluation (Extension F).
+3. Capture Wireshark and terminal execution logs during the live evaluation to provide formal completion evidence.
+
+### 7.6 Unsupported Claims that Must Be Removed / Avoided
+- ❌ **Claim to Remove**: *"The platform achieves hardware-level high availability across backend instances."*  
+  $\rightarrow$ **Correction**: Both backends run on Mac3. High availability is process-level only.
+- ❌ **Claim to Remove**: *"Mac4 is active as Backend B."*  
+  $\rightarrow$ **Correction**: Mac4 is unavailable as a project server and serves solely as a documentation workstation.
+- ❌ **Claim to Remove**: *"Extension F is 100% finished."*  
+  $\rightarrow$ **Correction**: Diagnostic procedures and practice tests are complete, but the formal faculty-injected evaluation test is pending live defense.
