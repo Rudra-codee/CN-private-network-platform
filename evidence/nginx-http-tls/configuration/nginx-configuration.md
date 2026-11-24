@@ -4,7 +4,7 @@
 **Node:** Mac 2 (Primary Edge)  
 **Host IP (Phase 2):** `10.7.9.219` *(Historical: `10.7.9.11`, `10.7.26.200`)*  
 **Active Config Path:** `/opt/homebrew/etc/nginx/nginx.conf`  
-**Repository Path:** [`configs/nginx/nginx.conf`](file:///Users/kaustubhhiwanj/CN-private-network-platform/configs/nginx/nginx.conf)  
+**Repository Path:** [`configs/nginx/nginx.conf`](../../../configs/nginx/nginx.conf)  
 **Auditor:** Kaustubh Hiwanj (Senior Computer Networks Engineer)  
 **Status:** **VERIFIED**
 

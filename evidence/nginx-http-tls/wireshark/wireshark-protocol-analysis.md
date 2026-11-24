@@ -15,14 +15,14 @@ Network packet traces were captured using Wireshark on Mac 1 to demonstrate the 
 DNS Resolution (Port 53) ──► TCP 3-Way Handshake ──► TLS 1.3 Handshake ──► Encrypted HTTP Exchange
 ```
 
-The captured artifacts are archived in [`evidence/07-wireshark/mac1/`](file:///Users/kaustubhhiwanj/CN-private-network-platform/evidence/07-wireshark/mac1/):
+The captured artifacts are archived in [`evidence/07-wireshark/mac1/`](../../07-wireshark/mac1/):
 
 | Artifact Filename | Artifact Link | Protocol Scope | Capture Location |
 |---|---|---|---|
-| `mac1-tls13-https-capture.png` | [`mac1-tls13-https-capture.png`](file:///Users/kaustubhhiwanj/CN-private-network-platform/evidence/07-wireshark/mac1/mac1-tls13-https-capture.png) | TLS 1.3 Handshake & Application Data | Mac 1 (`en0`) |
-| `mac1-backend-a-response.png` | [`mac1-backend-a-response.png`](file:///Users/kaustubhhiwanj/CN-private-network-platform/evidence/07-wireshark/mac1/mac1-backend-a-response.png) | HTTP Response & Caching Headers | Mac 1 Terminal |
-| `mac1-private-dns-verification.png`| [`mac1-private-dns-verification.png`](file:///Users/kaustubhhiwanj/CN-private-network-platform/evidence/07-wireshark/mac1/mac1-private-dns-verification.png) | Authoritative DNS Query & Response | Mac 1 Terminal |
-| `README.md` | [`README.md`](file:///Users/kaustubhhiwanj/CN-private-network-platform/evidence/07-wireshark/mac1/README.md) | Task G Comprehensive Protocol Analysis | Mac 1 |
+| `mac1-tls13-https-capture.png` | [`mac1-tls13-https-capture.png`](../../07-wireshark/mac1/mac1-tls13-https-capture.png) | TLS 1.3 Handshake & Application Data | Mac 1 (`en0`) |
+| `mac1-backend-a-response.png` | [`mac1-backend-a-response.png`](../../07-wireshark/mac1/mac1-backend-a-response.png) | HTTP Response & Caching Headers | Mac 1 Terminal |
+| `mac1-private-dns-verification.png`| [`mac1-private-dns-verification.png`](../../07-wireshark/mac1/mac1-private-dns-verification.png) | Authoritative DNS Query & Response | Mac 1 Terminal |
+| `README.md` | [`README.md`](../../07-wireshark/mac1/README.md) | Task G Comprehensive Protocol Analysis | Mac 1 |
 
 ---
 

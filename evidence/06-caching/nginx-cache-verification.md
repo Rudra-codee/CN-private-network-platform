@@ -16,7 +16,7 @@ This document records the empirical verification of Task F server-side HTTP cach
 
 ## 2. Active Nginx Cache Configuration
 
-The reverse-proxy caching configuration on Mac 2 is active in `/opt/homebrew/etc/nginx/nginx.conf` (version-controlled in [`configs/nginx/nginx.conf`](file:///Users/kaustubhhiwanj/CN-private-network-platform/configs/nginx/nginx.conf)).
+The reverse-proxy caching configuration on Mac 2 is active in `/opt/homebrew/etc/nginx/nginx.conf` (version-controlled in [`configs/nginx/nginx.conf`](../../configs/nginx/nginx.conf)).
 
 ### Cache Zone Declaration (`http` block)
 
