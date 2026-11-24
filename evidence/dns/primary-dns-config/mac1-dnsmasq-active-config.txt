@@ -1,0 +1,24 @@
+# Computer Networks Project - Private DNS
+# Mac1 DNS Server
+# Location: /opt/homebrew/etc/dnsmasq.conf
+
+listen-address=127.0.0.1,10.7.19.129
+bind-interfaces
+
+port=53
+
+# Private project domains point to Mac2 (Nginx Edge)
+address=/app.teamX.test/10.7.24.216
+address=/api.teamX.test/10.7.9.219
+address=/ttl-test.teamX.test/10.7.9.219
+
+# Forward external DNS queries
+server=8.8.8.8
+server=1.1.1.1
+no-resolv
+
+domain-needed
+bogus-priv
+
+local-ttl=30
+address=/fault-test.teamX.test/10.7.9.219

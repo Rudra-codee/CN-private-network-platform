@@ -1,0 +1,21 @@
+
+; <<>> DiG 9.10.6 <<>> @10.7.19.129 nonexistent.teamX.test
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 60694
+;; flags: qr rd ra; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+;; QUESTION SECTION:
+;nonexistent.teamX.test.		IN	A
+
+;; AUTHORITY SECTION:
+.			86166	IN	SOA	a.root-servers.net. nstld.verisign-grs.com. 2026112401 1800 900 604800 86400
+
+;; Query time: 3 msec
+;; SERVER: 10.7.19.129#53(10.7.19.129)
+;; WHEN: Wed Nov 25 02:29:38 IST 2026
+;; MSG SIZE  rcvd: 126
+
