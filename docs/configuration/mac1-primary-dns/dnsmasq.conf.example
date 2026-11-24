@@ -1,0 +1,97 @@
+# =============================================================================
+# dnsmasq Configuration — Mac 1 Primary DNS Server
+# Project: Private Network Service Platform — Phase 1 & Phase 2
+# =============================================================================
+#
+# Configuration file path:  /opt/homebrew/etc/dnsmasq.conf
+# Software:                 dnsmasq 2.93 (Homebrew)
+# Host node:                Mac 1
+# Host IP (Phase 2):        10.7.19.129
+# Listening port:           53 / UDP & TCP
+#
+# This is a sanitized copy of the active runtime configuration.
+# Machine-specific identifiers (hostnames, personal paths) have been
+# replaced with project-generic labels.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Listener Configuration
+# -----------------------------------------------------------------------------
+# Bind dnsmasq to the loopback interface AND the LAN-facing Wi-Fi interface.
+# This allows the DNS server to answer both local queries on this machine
+# (127.0.0.1) and remote queries from other LAN nodes (10.7.19.129).
+#
+# Replace 10.7.19.129 with the actual LAN IP of Mac 1 in your environment.
+listen-address=127.0.0.1,10.7.19.129
+
+# Restrict binding strictly to the addresses listed in listen-address=.
+# Prevents dnsmasq from wildcard-binding to 0.0.0.0, which would conflict
+# with other processes (e.g., mDNSResponder) using port 53.
+bind-interfaces
+
+# Standard DNS service port.
+port=53
+
+# -----------------------------------------------------------------------------
+# Authoritative Private Zone Records (.teamX.test)
+# -----------------------------------------------------------------------------
+# These A records are served authoritatively for the .teamX.test private zone.
+# dnsmasq synthesises the answer section and sets the AA (Authoritative Answer)
+# flag when responding to queries matching these address= directives.
+#
+# Phase 2 current state (after Extension E edge migration):
+
+# Application entry point — routes to the migrated standby edge proxy on Mac 3.
+# Clients reaching app.teamX.test are TLS-terminated by nginx on Mac 3.
+address=/app.teamX.test/10.7.24.216
+
+# API entry point — routes to the primary edge proxy on Mac 2.
+# All backend API traffic continues to be proxied through Mac 2's nginx.
+address=/api.teamX.test/10.7.9.219
+
+# TTL validation record — dedicated hostname for Extension B TTL testing.
+# Used to demonstrate controlled DNS record changes and cache propagation.
+address=/ttl-test.teamX.test/10.7.9.219
+
+# Fault injection record — used in failure-scenario demonstrations (Task H).
+# Intentionally resolves to the edge node for failure simulation tests.
+address=/fault-test.teamX.test/10.7.9.219
+
+# -----------------------------------------------------------------------------
+# Upstream Recursive Forwarding
+# -----------------------------------------------------------------------------
+# Forward any query that does NOT match a local address= record to public
+# resolvers for recursive resolution. Two upstreams are listed for redundancy.
+server=8.8.8.8
+server=1.1.1.1
+
+# Do not inherit upstream DNS servers from /etc/resolv.conf.
+# All forwarding is controlled exclusively by the server= directives above,
+# which prevents any system-configured resolver from being consulted.
+no-resolv
+
+# -----------------------------------------------------------------------------
+# Query Safety Filters
+# -----------------------------------------------------------------------------
+# Refuse to forward single-label queries (e.g. "localhost", "gateway").
+# These names are local-only and must not leak to upstream public resolvers.
+domain-needed
+
+# Return NXDOMAIN for reverse PTR lookups on RFC 1918 private address ranges
+# (10.x.x.x, 172.16-31.x.x, 192.168.x.x) instead of forwarding them upstream.
+bogus-priv
+
+# -----------------------------------------------------------------------------
+# TTL Configuration (Phase 2 Extension B)
+# -----------------------------------------------------------------------------
+# Set the wire TTL advertised in answer sections for all locally synthesised
+# records (address= directives) to 30 seconds.
+#
+# A TTL of 30 seconds means downstream caches and clients are advised to hold
+# the record for at most 30 seconds before re-querying. This balances the speed
+# of DNS-based migration (short TTL = faster propagation) against query load.
+#
+# NOTE: This controls the TTL field in the DNS wire packet only.
+#       Actual client-side cache retention depends on the client OS resolver
+#       implementation (e.g., macOS mDNSResponder) and may differ.
+local-ttl=30
