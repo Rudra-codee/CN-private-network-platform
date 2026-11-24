@@ -1,0 +1,570 @@
+# Backend A — Service Documentation
+
+**Project:** Private Network Service Platform — Phase 1 & Phase 2  
+**Document:** Backend Service A — Source Inspection, API Reference, and Operations Guide  
+**Target Path:** `docs/backend/Backend_A/README.md`  
+**Classification:** Backend Service Documentation  
+**Author:** Senior Backend Developer & Computer Networks Documentation Engineer  
+
+---
+
+## 1. Service Overview
+
+Backend A is a lightweight HTTP REST microservice running on the **Node.js** runtime with the **Express** framework. It functions as one of two upstream application backends in the Private Network Service Platform, receiving proxied HTTP requests from the Nginx edge reverse proxy on Mac 2.
+
+Its sole responsibility is to respond to defined GET endpoints with deterministic JSON payloads and a custom response header (`X-Backend: A`) that allows the edge proxy, test clients, and documentation engineers to identify which backend instance handled a given request. This header is the primary mechanism used to verify round-robin load balancing behaviour.
+
+### 1.1 Deployment Context
+
+| Property | Value |
+|---|---|
+| **Host Machine (Phase 1)** | Mac 3 — `10.7.13.5` |
+| **Host Machine (Phase 2)** | Mac 3 — `10.7.24.216` |
+| **Co-location Note** | Backend A and Backend B both run on Mac 3 in Phase 2. Mac 4, originally designated as the Backend B host, is unavailable as a project server. Both backends are assigned distinct TCP port numbers on the same host. |
+| **Listening Address** | `0.0.0.0:3001` |
+| **Edge Proxy** | Nginx on Mac 2 (`10.7.9.219`), upstream pool member at `10.7.24.216:3001` |
+
+---
+
+## 2. Source File Inventory
+
+The canonical source for Backend A is located at:
+
+```
+backend-a/
+├── server.js          — Application entry point (all routes and server bootstrap)
+├── package.json       — npm manifest: name, version, scripts, declared dependency
+├── package-lock.json  — Deterministic dependency lock file (npm lockfileVersion 3)
+└── README.md          — Original README (Phase 1 overview, now superseded by this document)
+```
+
+> [!NOTE]
+> There is no `index.js` in this directory. Despite `package.json` listing `"main": "index.js"`, the **actual entry point is `server.js`**, launched via the `"start"` script: `"node server.js"`. The `main` field is unused in this service (it is relevant only when the package is `require()`-d as a module; this service is started directly).
+
+There are **no subdirectories**, no helper scripts, no `.env` files, and no test files in `backend-a/`.
+
+---
+
+## 3. Programming Language and Framework
+
+| Property | Value | Source |
+|---|---|---|
+| **Language** | JavaScript (Node.js) | Verified from `server.js` syntax and `package.json` |
+| **Runtime** | Node.js (requires ≥ 18) | Express 5.x engine requirement in `package-lock.json` |
+| **Framework** | Express `5.2.1` | `package.json` → `"express": "^5.2.1"` |
+| **Package Manager** | npm | `package-lock.json` present (`lockfileVersion: 3`) |
+| **Node.js on Mac 1** | `v22.14.0` | Verified from `node --version` on this machine |
+| **npm on Mac 1** | `10.9.2` | Verified from `npm --version` on this machine |
+
+> [!IMPORTANT]
+> The runtime version on Mac 1 is recorded for reference. Backend A **runs on Mac 3**, not Mac 1. The Node.js version on Mac 3 was not inspected as part of this document. It must be ≥ 18 to satisfy Express 5.x's engine requirement. See Section 10 for unverified details.
+
+---
+
+## 4. Application Entry Point
+
+**File:** [`backend-a/server.js`](../../../backend-a/server.js)  
+**Start command:** `node server.js` (invoked via `npm start`)
+
+The file is 29 lines long. It:
+1. Requires `express` and creates an application instance.
+2. Declares `HOST = "0.0.0.0"` and `PORT = 3001` as module-level constants.
+3. Registers two GET route handlers.
+4. Calls `app.listen(PORT, HOST, callback)` to bind the TCP socket and start accepting connections.
+
+There is no process management wrapper (no `pm2`, no `nodemon`, no `forever`). The process runs in the foreground of the shell session that launched it.
+
+---
+
+## 5. API Endpoints
+
+Both endpoints are defined in [`backend-a/server.js`](../../../backend-a/server.js) and verified from the source code and empirical test output in `evidence/03-backends/backend-a-verification.md`.
+
+### 5.1 `GET /`
+
+**Purpose:** Root health-check and service identity endpoint.
+
+| Property | Value |
+|---|---|
+| **HTTP Method** | `GET` |
+| **Path** | `/` |
+| **Request Parameters** | None |
+| **Request Body** | None |
+| **HTTP Status Code** | `200 OK` |
+| **Response Content-Type** | `application/json; charset=utf-8` |
+
+**Response Headers (selected):**
+
+| Header | Value | Set By |
+|---|---|---|
+| `X-Backend` | `A` | `res.set("X-Backend", "A")` in `server.js` line 9 |
+| `X-Powered-By` | `Express` | Express default (auto-injected) |
+| `Content-Type` | `application/json; charset=utf-8` | Express `res.json()` |
+| `ETag` | Weak ETag computed by Express | Auto-generated by Express from response body hash |
+
+**Response Body:**
+
+```json
+{"backend":"A","status":"ok","message":"Backend A is running"}
+```
+
+**Evidence — verified curl output from `evidence/03-backends/backend-a-verification.md`:**
+
+```http
+HTTP/1.1 200 OK
+X-Powered-By: Express
+X-Backend: A
+Content-Type: application/json; charset=utf-8
+Content-Length: 62
+ETag: W/"3e-QF9vFacPifwgRXeqh9wcQA56VjA"
+Date: Tue, 29 Sep 2026 11:17:14 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"backend":"A","status":"ok","message":"Backend A is running"}
+```
+
+---
+
+### 5.2 `GET /api/status`
+
+**Purpose:** Machine-readable backend status endpoint. This is the primary endpoint used by the Nginx upstream health probe path and load-balancing verification tests.
+
+| Property | Value |
+|---|---|
+| **HTTP Method** | `GET` |
+| **Path** | `/api/status` |
+| **Request Parameters** | None |
+| **Request Body** | None |
+| **HTTP Status Code** | `200 OK` |
+| **Response Content-Type** | `application/json; charset=utf-8` |
+
+**Response Headers (selected):**
+
+| Header | Value | Set By |
+|---|---|---|
+| `X-Backend` | `A` | `res.set("X-Backend", "A")` in `server.js` line 19 |
+| `X-Powered-By` | `Express` | Express default (auto-injected) |
+| `ETag` | `W/"1d-/mMMZex8nvIDi44lSUobi0vFg/M"` | Auto-generated by Express |
+
+**Response Body:**
+
+```json
+{"backend":"A","status":"ok"}
+```
+
+**Evidence — verified curl output from `evidence/03-backends/backend-a-verification.md`:**
+
+```http
+HTTP/1.1 200 OK
+X-Powered-By: Express
+X-Backend: A
+Content-Type: application/json; charset=utf-8
+Content-Length: 29
+ETag: W/"1d-/mMMZex8nvIDi44lSUobi0vFg/M"
+Date: Tue, 29 Sep 2026 11:17:32 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"backend":"A","status":"ok"}
+```
+
+---
+
+### 5.3 Unregistered Paths
+
+Any HTTP request to a path not registered above (e.g., `GET /health`, `GET /metrics`, `POST /api/status`) is handled by Express's default finalhandler. Express 5.x returns:
+
+- **HTTP Status:** `404 Not Found`
+- **Body:** `Cannot <METHOD> <PATH>`
+
+This behaviour is implicit from the framework and is **not** explicitly coded in `server.js`.
+
+---
+
+## 6. Port and Network Configuration
+
+```
+HOST = "0.0.0.0"   (binds to ALL network interfaces)
+PORT = 3001         (TCP)
+```
+
+Both values are declared as module-level constants in `server.js` lines 5–6. They are **not** read from environment variables and are **not** configurable without editing the source file.
+
+### 6.1 Why `0.0.0.0` Binding is Required
+
+Binding to `0.0.0.0` instructs the Node.js TCP socket to accept incoming connections on **all** network interfaces on the host, including:
+- The loopback interface (`127.0.0.1`) — for local curl tests on Mac 3 itself.
+- The LAN Wi-Fi interface (`en0`) — for requests forwarded by Nginx on Mac 2 across the LAN.
+
+If the service were bound to `127.0.0.1` only, Nginx on Mac 2 would receive a TCP connection refused (RST) when attempting to open an upstream proxy socket to `10.7.24.216:3001`.
+
+### 6.2 Configuration Hardcoding Notice
+
+> [!WARNING]
+> `HOST` and `PORT` are hardcoded constants. There is no environment variable fallback (e.g., `process.env.PORT`). To run Backend A on a different port, the source file must be edited. This is acceptable for a fixed project environment but would require refactoring for a production deployment where port assignments may vary across environments.
+
+---
+
+## 7. Backend Identification Mechanism
+
+Backend A identifies itself to clients and the edge proxy via a custom response header:
+
+```
+X-Backend: A
+```
+
+This header is set explicitly on **every** response in both route handlers (lines 9 and 19 of `server.js`). It is **not** injected by Express automatically — it is project-specific application code.
+
+The JSON response body also includes `"backend": "A"` as a machine-readable field.
+
+**Load balancing verification use:** When a test client sends multiple sequential requests through the Nginx reverse proxy at `app.teamX.test:8080`, the alternating pattern of `X-Backend: A` and `X-Backend: B` in the responses proves that round-robin distribution is working correctly across the two upstream backends.
+
+---
+
+## 8. Dependencies
+
+### 8.1 Direct Dependencies (`package.json`)
+
+| Package | Declared Version | Resolved Version | License |
+|---|---|---|---|
+| `express` | `^5.2.1` | `5.2.1` | MIT |
+
+### 8.2 Transitive Dependencies (resolved by npm, from `package-lock.json`)
+
+Express 5.2.1 pulls in the following sub-dependencies. All are resolved and pinned in `package-lock.json`.
+
+| Package | Version | Purpose |
+|---|---|---|
+| `accepts` | `2.0.0` | Content negotiation |
+| `body-parser` | `2.3.0` | Request body parsing |
+| `bytes` | `3.1.2` | Byte size parsing |
+| `content-disposition` | `1.1.0` | HTTP Content-Disposition header |
+| `content-type` | `1.0.5` | MIME type parsing |
+| `cookie` | `0.7.2` | Cookie parsing |
+| `cookie-signature` | `1.2.2` | Cookie signing |
+| `debug` | `4.4.3` | Conditional debug logging |
+| `depd` | `2.0.0` | Deprecation warnings |
+| `ee-first` | `1.1.1` | EventEmitter first-event helper |
+| `encodeurl` | `2.0.0` | URL encoding |
+| `escape-html` | `1.0.3` | HTML escaping for error pages |
+| `etag` | `1.8.1` | ETag generation |
+| `finalhandler` | `2.1.1` | Default 404/500 error handler |
+| `forwarded` | `0.2.0` | X-Forwarded-For parsing |
+| `fresh` | `2.0.0` | HTTP cache freshness check |
+| `http-errors` | `2.0.1` | HTTP error constructors |
+| `iconv-lite` | `0.7.3` | Character encoding conversion |
+| `ipaddr.js` | `1.9.1` | IP address parsing |
+| `mime-types` / `mime-db` | `3.0.2` / `1.54.0` | MIME type lookup |
+| `negotiator` | `1.1.0` | HTTP content negotiation |
+| `on-finished` | `2.4.1` | Execute callback when HTTP request finishes |
+| `parseurl` | `1.3.3` | URL parsing with memoization |
+| `path-to-regexp` | `8.4.2` | Route path pattern matching |
+| `proxy-addr` | `2.0.8` | Trusted proxy address parsing |
+| `qs` | `6.16.0` | Query string parsing |
+| `range-parser` | `1.3.0` | HTTP Range header parsing |
+| `raw-body` | `3.0.2` | Raw request body buffering |
+| `router` | `2.2.0` | Express routing engine |
+| `safer-buffer` | `2.1.2` | Buffer safety shim |
+| `send` | `1.2.1` | Static file streaming |
+| `serve-static` | `2.2.1` | Static asset serving |
+| `statuses` | `2.0.1` | HTTP status code/message lookup |
+| `type-is` | `2.0.1` | Request content-type detection |
+| `vary` | `1.1.2` | HTTP Vary header helper |
+| `wrappy` | `1.0.2` | Function wrapping utility |
+
+> [!NOTE]
+> Many of these transitive packages (e.g., `body-parser`, `serve-static`, `cookie`) are bundled as part of Express 5's default middleware stack but are **not actively used** by Backend A, which implements no body parsing, static serving, or cookie handling. They are present because Express includes them in its own dependencies — no manual cleanup is needed as long as `package-lock.json` is committed and `npm ci` is used for reproducible installs.
+
+### 8.3 Development Dependencies
+
+None declared. `package.json` contains no `devDependencies` field.
+
+---
+
+## 9. Startup and Shutdown Procedure
+
+### 9.1 Installing Dependencies
+
+Before the first run, install all packages from the lockfile:
+
+```bash
+# From the backend-a/ directory
+cd backend-a
+npm install
+```
+
+For strictly reproducible installs (CI/CD or clean environments):
+
+```bash
+npm ci
+```
+
+> `npm ci` installs exactly the versions pinned in `package-lock.json` and fails if `package.json` and `package-lock.json` are out of sync.
+
+### 9.2 Starting the Service
+
+```bash
+# From the backend-a/ directory
+npm start
+```
+
+This executes `node server.js`. On successful startup, the process emits to stdout:
+
+```
+Backend A listening on 0.0.0.0:3001
+```
+
+The process runs in the **foreground** of the terminal session. It does not daemonise itself.
+
+### 9.3 Background Startup (for sustained operation on Mac 3)
+
+To keep the service running after the terminal closes:
+
+```bash
+# Run in background and capture PID
+nohup node server.js &> backend-a.log &
+echo $! > backend-a.pid
+```
+
+### 9.4 Stopping the Service
+
+**If running in the foreground:**
+
+```
+Ctrl + C
+```
+
+This sends `SIGINT` to the Node.js process. Express does not register a SIGINT handler, so the process exits immediately without graceful connection draining.
+
+**If running in the background:**
+
+```bash
+# Using the PID file saved at startup
+kill $(cat backend-a.pid)
+
+# Or by finding the process
+lsof -nP -iTCP:3001 -sTCP:LISTEN
+kill <PID>
+```
+
+---
+
+## 10. Tests
+
+### 10.1 Existing Test Suite
+
+**No automated tests exist for Backend A.**
+
+The `package.json` `"test"` script is set to:
+
+```json
+"test": "echo \"Error: no test specified\" && exit 1"
+```
+
+Running `npm test` will exit with code 1 and print the error message. This is the npm default placeholder — no test framework has been configured.
+
+---
+
+### 10.2 Verification Checklist (curl-based)
+
+The following manual verification procedure covers all implemented behaviour observable from HTTP responses. All expected results are derived directly from the source code in `server.js` and confirmed against empirical evidence in `evidence/03-backends/backend-a-verification.md`.
+
+**Prerequisites:** Backend A must be running on Mac 3. Run the commands below from Mac 3 itself (loopback tests) or from Mac 2 / Mac 1 (LAN tests). Replace IP with Mac 3's current LAN address if DHCP has changed it.
+
+---
+
+#### Check 1 — Verify service is listening on port 3001
+
+```bash
+lsof -nP -iTCP:3001 -sTCP:LISTEN
+```
+
+**Expected:** A line showing a `node` process bound to `*:3001` (LISTEN). Example:
+```
+COMMAND  PID  USER  FD  TYPE  DEVICE SIZE/OFF NODE NAME
+node    1234  rudra 19u IPv4  ...          0t0  TCP *:3001 (LISTEN)
+```
+
+**Fail condition:** No output — service is not running.
+
+---
+
+#### Check 2 — `GET /` via loopback
+
+```bash
+curl -i http://127.0.0.1:3001/
+```
+
+**Expected:**
+- Status: `HTTP/1.1 200 OK`
+- Header: `X-Backend: A`
+- Header: `Content-Type: application/json; charset=utf-8`
+- Body: `{"backend":"A","status":"ok","message":"Backend A is running"}`
+
+---
+
+#### Check 3 — `GET /api/status` via loopback
+
+```bash
+curl -i http://127.0.0.1:3001/api/status
+```
+
+**Expected:**
+- Status: `HTTP/1.1 200 OK`
+- Header: `X-Backend: A`
+- Header: `Content-Type: application/json; charset=utf-8`
+- Body: `{"backend":"A","status":"ok"}`
+
+---
+
+#### Check 4 — `GET /api/status` via LAN IP (Phase 2 address)
+
+```bash
+curl -i http://10.7.24.216:3001/api/status
+```
+
+**Expected:** Same as Check 3. This confirms the `0.0.0.0` binding allows external LAN access.
+
+> Replace `10.7.24.216` with Mac 3's current DHCP-assigned IP if it has changed.
+
+---
+
+#### Check 5 — Cross-machine test from Mac 2 (edge proxy host)
+
+Execute from Mac 2:
+
+```bash
+curl -i http://10.7.24.216:3001/api/status
+```
+
+**Expected:** Same as Check 3. This validates that Mac 2's nginx can reach Backend A for upstream proxying.
+
+---
+
+#### Check 6 — `X-Backend` header isolation
+
+```bash
+curl -s http://127.0.0.1:3001/api/status -o /dev/null -D - | grep -i x-backend
+```
+
+**Expected output:**
+```
+x-backend: A
+```
+
+---
+
+#### Check 7 — ETag header presence (HTTP caching prerequisite)
+
+```bash
+curl -I http://127.0.0.1:3001/api/status
+```
+
+**Expected:** Response includes an `ETag` header (weak ETag, e.g., `W/"1d-..."`). This confirms Express's automatic ETag generation is active, which enables Nginx's conditional request (`If-None-Match`) cache validation.
+
+---
+
+#### Check 8 — 404 on undefined routes
+
+```bash
+curl -i http://127.0.0.1:3001/nonexistent
+```
+
+**Expected:**
+- Status: `HTTP/1.1 404 Not Found`
+- Body: `Cannot GET /nonexistent`
+
+---
+
+#### Check 9 — POST method not allowed
+
+```bash
+curl -i -X POST http://127.0.0.1:3001/api/status
+```
+
+**Expected:**
+- Status: `HTTP/1.1 404 Not Found`
+
+> [!NOTE]
+> Express 5.x returns 404 (not 405) for unregistered method/path combinations unless explicit method restriction middleware is added. This is correct behaviour for this service.
+
+---
+
+## 11. Code Quality Inspection
+
+The following properties of `server.js` were inspected as part of the mandatory pre-documentation code review.
+
+### 11.1 Hardcoded Machine-Specific IP Addresses
+
+**Finding: NONE FOUND.**
+
+`server.js` contains **no hardcoded IP addresses**. The `HOST` constant is set to the generic value `"0.0.0.0"`, which is machine-agnostic.
+
+### 11.2 Hardcoded Absolute File Paths
+
+**Finding: NONE FOUND.**
+
+No file I/O operations, `__dirname` references, or absolute paths are present in the source.
+
+### 11.3 Missing Dependencies
+
+**Finding: NONE FOUND.**
+
+The only declared dependency (`express`) is present in `package-lock.json` with a fully resolved dependency graph. `node_modules/` is excluded by `.gitignore` (expected). Running `npm install` or `npm ci` from `backend-a/` resolves all packages.
+
+### 11.4 Unnecessary Packages
+
+**Finding: Acceptable — no action required.**
+
+Transitive Express sub-packages (e.g., `body-parser`, `serve-static`) are bundled within Express 5 itself and cannot be removed individually without replacing the framework. For this application's scope, no pruning is warranted.
+
+### 11.5 Embedded Credentials or Secrets
+
+**Finding: NONE FOUND.**
+
+No passwords, API tokens, private keys, database connection strings, or any other credentials are present in `server.js`, `package.json`, or `package-lock.json`.
+
+### 11.6 Unsafe Error Handling
+
+**Finding: Partial concern — low severity.**
+
+No explicit `try/catch` blocks or `.on('error', ...)` handlers are present in `server.js`. Specifically:
+- If `app.listen()` fails (e.g., port 3001 is already in use), Node.js will throw an unhandled `EADDRINUSE` error that terminates the process with a stack trace on stderr. This is acceptable for a development-class project service.
+- Neither route handler catches internal errors. If `res.json()` were to fail (highly unlikely), Express 5's built-in `finalhandler` would return a 500 response.
+
+This is **not a blocking issue** for the project's scope and aligns with Express documentation recommendations for minimal services. It is recorded here for completeness.
+
+### 11.7 Port Configuration
+
+**Finding: Hardcoded — no environment variable override.**
+
+`PORT = 3001` is a hard constant. See Section 6.2 for the full assessment. No change is recommended for this project.
+
+### 11.8 Working Directory Assumptions
+
+**Finding: NONE FOUND.**
+
+The application does not read configuration files, templates, or static assets from the filesystem. It has no dependency on the current working directory at startup.
+
+### 11.9 `package.json` `main` Field Mismatch
+
+**Finding: Minor inconsistency — does not affect runtime.**
+
+`package.json` declares `"main": "index.js"`, but the actual entry point is `server.js`. The `main` field is only relevant when this package is imported as a Node.js module by another package — which never happens in this project. The service is started via `npm start` → `node server.js`, bypassing the `main` field entirely. **No code change is recommended**, but the inconsistency should be noted in a future cleanup pass.
+
+---
+
+## 12. Related Documents
+
+| Document | Location | Description |
+|---|---|---|
+| Backend A source | `backend-a/server.js` | Canonical application source (do not duplicate) |
+| Backend A manifest | `backend-a/package.json` | npm package definition |
+| Backend A lock file | `backend-a/package-lock.json` | Deterministic dependency resolution |
+| Backend A original README | `backend-a/README.md` | Phase 1 overview (contains outdated IP `10.7.13.5`) |
+| Task C verification evidence | `evidence/03-backends/backend-a-verification.md` | Phase 1 curl test output with actual HTTP responses |
+| Task F caching evidence | `evidence/06-caching/backend-a-verification.md` | ETag and caching header verification |
+| Nginx architecture | `docs/architecture/nginx-architecture.md` | Upstream pool configuration that includes Backend A |
+| HTTP/TLS/Nginx section | `docs/architecture/sections/03_HTTP_TLS_Nginx_and_Backends.md` | Full system-level architecture context |
+| Project topology | `docs/architecture/sections/01_Project_Overview_and_Topology.md` | Network overview and Mac 3 role |
